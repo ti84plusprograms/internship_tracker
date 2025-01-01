@@ -1,13 +1,13 @@
 function checkEmailsAndUpdateSheet() {
   let testing = true;
-  const sheetNames = ["Internship Tracker", "Search Queries"];
+  const sheetNames = ["Internship Tracker", "Search Queries", "ML_Dataset"];
   //testing ? resetSheet("Testing") : resetSheet(sheetNames[0]);
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const queriesSheet = spreadsheet.getSheetByName(sheetNames[1]);
   const dataSheet = testing ? spreadsheet.getSheetByName("Testing") : spreadsheet.getSheetByName(sheetNames[0]);
 
   // reset the current sheet which includes adding the header
-  resetSheet(dataSheet)
+  resetSheet(dataSheet);
 
   // Ensure both sheets exist
   if (!queriesSheet || !dataSheet) {
@@ -30,6 +30,7 @@ function checkEmailsAndUpdateSheet() {
   console.log(queriesArray);
 
   const dataSheetRows = [];
+  const mlDatasetRows = [];
   
   queriesArray.forEach(([queryId, query]) => {
     console.log(queryId);
@@ -40,9 +41,14 @@ function checkEmailsAndUpdateSheet() {
       const messages = thread.getMessages();
       messages.forEach(message => {
         const emailBody = message.getBody();
-        console.log(emailBody);
+        if(queryId == "Q002") {
+          console.log(emailBody);
+        }
         const dateApplied = Utilities.formatDate(message.getDate(), Session.getScriptTimeZone(), "M/d/yyyy");
         const subject = message.getSubject();
+        if(queryId == "Q002") {
+          console.log(subject);
+        }
         const company = subject.match(/at (.+)$/)?.[1] || "Unknown";
         const linkMatch = emailBody.match(/(https?:\/\/[^\s]+)/);
         const link = linkMatch ? linkMatch[1] : "No link found";
@@ -57,6 +63,13 @@ function checkEmailsAndUpdateSheet() {
           "Applied",
           link
         ]);
+
+        mlDatasetRows.push(
+          [
+            subject,
+            emailBody,
+          ]
+        )
       });
     });
   });
@@ -73,7 +86,9 @@ function checkEmailsAndUpdateSheet() {
 
   // make the columns so they fit the data adequately
   autoResizeWithMarginAndWrap(dataSheet, 15, 300);
+  autoResizeWithMarginAndWrap(mlSheet, 15, 300);
 
+  // queryId wont be necessary if we are not testing
   if(!testing) {
     dataSheet.deleteColumn(1);
   } 
@@ -90,8 +105,12 @@ function checkEmailsAndUpdateSheet() {
 }
 
 function addHeader(dataSheet) {
+  let header = ["QueryID","Date Applied","Company/Organization","Position","Location of Internship", "Application Status", "Link with internship information"];
 
-  const header = ["QueryID","Date Applied","Company/Organization","Position","Location of Internship", "Application Status", "Link with internship information"]
+  if (dataSheet.getSheetName() == "ML_Dataset") 
+  {
+    header = ["email subject", "email body", "company name (expected output)"];
+  }
 
   const existingRows = dataSheet.getDataRange().getValues();
 
@@ -99,8 +118,6 @@ function addHeader(dataSheet) {
   const headerExists = existingRows.some(row => row.join() === header.join());
 
   if (!headerExists) {
-    // clear all the data (will comment out when not needed anymore)
-    //dataSheet.clear();
     // Add the new row
     dataSheet.appendRow(header);
   } else {
