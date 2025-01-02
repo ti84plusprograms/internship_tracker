@@ -25,8 +25,6 @@ function populateDataset() {
     return;
   }
 
-  const ml_rows = [];
-
   queries.forEach(query => {
     const threads = GmailApp.search(query); // Search Gmail with the query
     threads.forEach(thread => {
@@ -63,11 +61,11 @@ function cleanData() {
 
   const newData = [];
   
-  // Check the position of the "Hits Found" column
+  // Check the position of the "email body" column
   const headers = data[0];
   const hitsIndex = headers.indexOf("email body");
   if (hitsIndex === -1) {
-    SpreadsheetApp.getUi().alert("The 'Hits Found' column is missing. Please ensure your sheet has this column.");
+    SpreadsheetApp.getUi().alert("The 'email body' column is missing. Please ensure your sheet has this column.");
     return;
   }
 
@@ -83,8 +81,31 @@ function cleanData() {
 }
 
 function cleanCell(rawHtml) {
-  // Parse the HTML content to remove tags and retain only the text.
-  const tempDoc = HtmlService.createHtmlOutput(rawHtml).getContent();
-  const plainText = tempDoc.replace(/<[^>]*>/g, ''); // Remove HTML tags
-  return plainText.replace(/\s+/g, ' ').trim(); // Clean up extra spaces
+  const url = "https://c921-201-221-172-16.ngrok-free.app";
+  const payload = JSON.stringify({ email_body: rawHtml });
+
+  const options = {
+    method: "POST",
+    contentType: "application/json",
+    payload: payload,
+    muteHttpExceptions: true,  // Ensure we don't throw an error on non-2xx status codes
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const responseText = response.getContentText();  // Get raw response
+    Logger.log("Response: " + responseText);  // Log the raw response
+    const data = JSON.parse(responseText);  // Try to parse JSON from the response
+    return data.cleaned_body || ""; // Return cleaned body
+  } catch (error) {
+    Logger.log("Error cleaning email: " + error);
+    return rawHtml; // Return the original raw HTML in case of an error
+  }
 }
+
+// function cleanCell(rawHtml) {
+//   // Parse the HTML content to remove tags and retain only the text.
+//   const tempDoc = HtmlService.createHtmlOutput(rawHtml).getContent();
+//   const plainText = tempDoc.replace(/<[^>]*>/g, ''); // Remove HTML tags
+//   return plainText.replace(/\s+/g, ' ').trim(); // Clean up extra spaces
+// }
