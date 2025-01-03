@@ -75,13 +75,15 @@ function cleanData() {
   }
 
   const range = mlSheet.getRange(2, hitsIndex + 1, data.length - 1, 1);
-  console.log(range);
+  // console.log(range);
   range.setValues(newData);
   console.log("It worked");
 }
 
 function cleanCell(rawHtml) {
-  const url = "https://c921-201-221-172-16.ngrok-free.app";
+  let url = "https://internship-tracker-1095575192028.us-central1.run.app";
+  const endpoint = "/clean-email";
+  url += endpoint;
   const payload = JSON.stringify({ email_body: rawHtml });
 
   const options = {
@@ -102,6 +104,21 @@ function cleanCell(rawHtml) {
     return rawHtml; // Return the original raw HTML in case of an error
   }
 }
+
+function testCleanCell() {
+  const testCases = [
+    { input: "<p>Hello, world!</p>", expected: "Hello, world!" },
+    { input: "", expected: "" },
+    { input: null, expected: "" },
+    { input: "<div>Malformed HTML without closing tags", expected: "Malformed HTML without closing tags" },
+  ];
+
+  testCases.forEach((testCase, index) => {
+    const result = cleanCell(testCase.input);
+    Logger.log(`Test Case ${index + 1}: ${result === testCase.expected ? "Passed" : "Failed"}`);
+  });
+}
+
 
 // function cleanCell(rawHtml) {
 //   // Parse the HTML content to remove tags and retain only the text.
