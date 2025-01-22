@@ -1,11 +1,22 @@
+let ml_data = 1; // 0 means company extraction dataset, 1 means email classifier dataset
 function populateDataset() {
+  let clear = true;
 
   // Open the active spreadsheet
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const queriesSheet = spreadsheet.getSheetByName("Search Queries");
-  const mlSheet = spreadsheet.getSheetByName("ML_Dataset");
+  const mlSheet = ml_data == 0 ? spreadsheet.getSheetByName("ML_Dataset_company_extraction") : spreadsheet.getSheetByName("ML_Dataset_email_classifier");
 
-  const header = ["email subject", "email body", "company name (expected output)"];
+  if (!queriesSheet || !mlSheet) {
+    SpreadsheetApp.getUi().alert("Ensure the sheets named ${sheetNames[0]} and ${sheetNames[1]} exist.");
+    return;
+  }
+
+  if (clear) {
+    mlSheet.clear();
+  }
+
+  const header = ml_data == 0 ? ["email subject", "email body", "company name (expected output)"] : ["email subject", "email body", "binary classification (expected output)"];
   let existingRows = mlSheet.getDataRange().getValues();
 
   // Check if the row already exists
@@ -18,7 +29,9 @@ function populateDataset() {
     console.log("header exists");
   }
 
-  const queries = queriesSheet.getRange(2, 2, queriesSheet.getLastRow() - 1).getValues().flat();
+  ml_rows = [];
+
+  const queries = ml_data == 0 ? queriesSheet.getRange(2, 2, queriesSheet.getLastRow() - 1).getValues().flat() : [`subject:("applying" OR "applied" OR "application" OR "applies")`];
 
   if (queries.length === 0) {
     SpreadsheetApp.getUi().alert("No queries found in 'Search Queries'. Please add some queries.");
@@ -36,7 +49,7 @@ function populateDataset() {
         ml_rows.push([
           subject,
           body,
-          "output"
+          ""
         ]);
       });
     });
@@ -45,19 +58,56 @@ function populateDataset() {
   ml_rows.forEach(row => {
     mlSheet.appendRow(row);
   });
+  // if (ml_data != 0) {
+  //   mlSheet.deleteColumn(3); // delete the column that contains the output
+  // }
 
   const range = mlSheet.getDataRange();
   range.removeDuplicates();
+  cleanData();
+  autoResizeWithMarginAndWrap(mlSheet, 15, 200);
+}
 
+function autoResizeWithMarginAndWrap(sheet, extraWidth, wrapThreshold) {
+
+  if (!sheet) {
+    console.error(`Sheet with the name "${sheetName}" not found!`);
+    return;
+  }
+
+  // Get the number of columns
+  const maxColumns = sheet.getLastColumn();
+
+  // Step 1: Auto-resize all columns
+  sheet.autoResizeColumns(1, maxColumns - 1);
+  sheet.setColumnWidth(1, 330);
+  sheet.setColumnWidth(2, 700);
+  sheet.getDataRange().setWrap(true);
+
+  // // Step 2: Adjust column widths and enable wrapping for wide columns
+  // for (let col = 1; col <= maxColumns; col++) {
+  //   const currentWidth = sheet.getColumnWidth(col);
+
+  //   // Add extra width to the column
+  //   const newWidth = currentWidth + extraWidth;
+  //   sheet.setColumnWidth(col, newWidth);
+
+  //   // Enable text wrapping if the column width exceeds the threshold
+  //   if (newWidth > wrapThreshold) {
+  //     const columnRange = sheet.getRange(1, col, sheet.getMaxRows());
+  //     columnRange.setWrap(true);
+  //   }
+  // }
+
+  console.log(`Auto-resized columns with an extra width of ${extraWidth} px and enabled wrapping for columns over ${wrapThreshold} px.`);
 }
 
 function cleanData() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const mlSheet = spreadsheet.getSheetByName("ML_Dataset");
+  const mlSheet = ml_data == 0 ? spreadsheet.getSheetByName("ML_Dataset_company_extraction") : spreadsheet.getSheetByName("ML_Dataset_email_classifier");
 
   // Get all data in the sheet
   const data = mlSheet.getDataRange().getValues();
-
 
   const newData = [];
   

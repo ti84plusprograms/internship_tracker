@@ -33,7 +33,6 @@ function checkEmailsAndUpdateSheet() {
   const mlDatasetRows = [];
   
   queriesArray.forEach(([queryId, query]) => {
-    console.log(queryId);
     const threads = GmailApp.search(query); // Search Gmail with the query
     results.push([queryId, query, threads.length]); // Store query and hit count
     
@@ -56,6 +55,7 @@ function checkEmailsAndUpdateSheet() {
         // Add data to the main sheet
         dataSheetRows.push([
           queryId,
+          subject,
           dateApplied,
           company,
           "Position Unknown",
@@ -86,11 +86,12 @@ function checkEmailsAndUpdateSheet() {
 
   // make the columns so they fit the data adequately
   autoResizeWithMarginAndWrap(dataSheet, 15, 300);
-  autoResizeWithMarginAndWrap(mlSheet, 15, 300);
+  // autoResizeWithMarginAndWrap(mlSheet, 15, 300);
 
-  // queryId wont be necessary if we are not testing
+  
   if(!testing) {
-    dataSheet.deleteColumn(1);
+    dataSheet.deleteColumn(1); // delete the queryId since we are not testing
+    dataSheet.deleteColumn(2); // delete the subject since we are not testing
   } 
 
   // Update the 'Hits Found' column in the 'Search Queries' sheet
@@ -100,12 +101,12 @@ function checkEmailsAndUpdateSheet() {
 
   removeZeroHitQueries(queriesSheet);
 
-  SpreadsheetApp.getUi().alert("Queries processed successfully!");
+  //SpreadsheetApp.getUi().alert("Queries processed successfully!");
 
 }
 
 function addHeader(dataSheet) {
-  let header = ["QueryID","Date Applied","Company/Organization","Position","Location of Internship", "Application Status", "Link with internship information"];
+  let header = ["QueryID", "Subject", "Date Applied","Company/Organization","Position","Location of Internship", "Application Status", "Link with internship information"];
 
   if (dataSheet.getSheetName() == "ML_Dataset") 
   {
@@ -234,6 +235,7 @@ function removeZeroHitQueries(sheet) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][hitsIndex] !== 0) {
       filteredData.push(data[i]);
+      console.log("Data was filtered at row " + i);
     }
   }
   
@@ -242,7 +244,7 @@ function removeZeroHitQueries(sheet) {
   sheet.getRange(1, 1, filteredData.length, headers.length).setValues(filteredData);
   
   // Notify the user
-  SpreadsheetApp.getUi().alert("Queries with 0 hits have been removed successfully.");
+  //SpreadsheetApp.getUi().alert("Queries with 0 hits have been removed successfully.");
 }
 
 
