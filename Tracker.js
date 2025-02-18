@@ -1,5 +1,6 @@
+let testing = true;
+
 function checkEmailsAndUpdateSheet() {
-  let testing = true;
   const sheetNames = ["Internship Tracker", "Search Queries", "ML_Dataset"];
   //testing ? resetSheet("Testing") : resetSheet(sheetNames[0]);
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -17,32 +18,45 @@ function checkEmailsAndUpdateSheet() {
 
 
   // Read search queries from the 'Search Queries' sheet
-  const queryIds = queriesSheet.getRange(2,1, queriesSheet.getLastRow() - 1).getValues().flat();
-  const queries = queriesSheet.getRange(2, 2, queriesSheet.getLastRow() - 1).getValues().flat();
+  const queries = ml_data == 0 ? queriesSheet.getRange(2, 2, queriesSheet.getLastRow() - 1).getValues().flat() : [`subject:("applying" OR "applied" OR "application" OR "applies")`];
+
+  if (queries.length === 0) {
+    SpreadsheetApp.getUi().alert("No queries found in 'Search Queries'. Please add some queries.");
+    return;
+  }
   const results = [];
-
-  // Combine queryIds and queries into a single array of arrays (using map)
-  const queriesArray = queryIds.map((id, index) => {
-  return [id, queries[index]]; // Return each pair of [queryId, query]
-  });
-
-  // Debugging: Log the combined queriesArray to ensure both IDs and queries are correct
-  console.log(queriesArray);
 
   const dataSheetRows = [];
   const mlDatasetRows = [];
-  
-  queriesArray.forEach(([queryId, query]) => {
-    const threads = GmailApp.search(query); // Search Gmail with the query
-    results.push([queryId, query, threads.length]); // Store query and hit count
-    
-    threads.forEach(thread => {
-      const messages = thread.getMessages();
-      messages.forEach(message => {
-        const emailBody = message.getBody();
-        if(queryId == "Q002") {
-          console.log(emailBody);
-        }
+
+  const threads = GmailApp.search('in:inbox OR in:spam');
+  let emails = [];
+
+  try {
+    emails = threads.flatMap(thread => thread.getMessages());
+  } catch (error) {
+    Logger.log("Error fetching emails: " + error.message);
+  }
+
+  console.log(emails.length)
+
+  emails.forEach(email => {
+    if (email.getThread().getMessageCount() === 1) {
+      console.log(email.getSubject())
+      console.log(email.getPlainBody())
+    }
+  })
+
+  emails.forEach(email => {
+    Logger.log("Remaining Gmail quota: " + GmailApp.getRemainingDailyQuota());
+    if (email.getThread().getMessageCount() === 1) {
+      const prediction = classifyEmail(email);
+      if (prediction === 1) {
+        console.log("It was 1");
+      } else {
+        console.log("It was 0");
+      } 
+      return;
         const dateApplied = Utilities.formatDate(message.getDate(), Session.getScriptTimeZone(), "M/d/yyyy");
         const subject = message.getSubject();
         if(queryId == "Q002") {
@@ -70,8 +84,7 @@ function checkEmailsAndUpdateSheet() {
             emailBody,
           ]
         )
-      });
-    });
+    };
   });
 
   dataSheetRows.sort((a, b) => {
@@ -94,16 +107,109 @@ function checkEmailsAndUpdateSheet() {
     dataSheet.deleteColumn(2); // delete the subject since we are not testing
   } 
 
-  // Update the 'Hits Found' column in the 'Search Queries' sheet
-  queries.forEach((query, index) => {
-    queriesSheet.getRange(index + 2, 4).setValue(results[index][2]); // Update 'Hits Found'
-  });
+  // // Update the 'Hits Found' column in the 'Search Queries' sheet
+  // queries.forEach((query, index) => {
+  //   queriesSheet.getRange(index + 2, 4).setValue(results[index][2]); // Update 'Hits Found'
+  // });
 
   removeZeroHitQueries(queriesSheet);
 
   //SpreadsheetApp.getUi().alert("Queries processed successfully!");
 
 }
+
+function searchEmails() {
+  const batchSize = 500;  // The maximum number of threads to fetch in each request
+  let pageToken;  // This will be used to paginate through results
+  let emails = [];
+  
+  do {
+    // Construct the search query
+    const searchQuery = 'after:2023/08/01 in:inbox OR in:spam subject:("applying" OR "applied" OR "application" OR "applies")';
+
+    pageToken = testing ? false : (GmailApp.getThreads(pageToken) ? GmailApp.getThreads(pageToken)[0].getId() : null);
+    
+    // Search for threads, considering pagination
+    console.time("Gmail search");
+    const threads = GmailApp.search(searchQuery, pageToken, batchSize);
+    console.timeEnd("Gmail search");
+
+    console.time("email push");
+    threads.forEach(thread => {
+      if (thread.getMessageCount() === 1) {
+        emails.push(thread.getMessages()[0]);
+      }
+    })
+    console.timeEnd("email push");
+    
+  } while (pageToken);  // Keep looping until all pages are fetched
+  
+  console.log(`Found ${emails.length} emails in Inbox or Spam after August 2023`);
+  return emails;
+}
+
+
+function getRelevantEmails() {
+  const emails = searchEmails();
+
+  let relevantEmails = [];  // Initialize an empty list to store relevant emails
+
+  emails.forEach(email => {
+    const prediction = classifyEmail(email);
+    
+    if (prediction === 1) {
+      relevantEmails.push(email);  // Add to the list if prediction is 1
+    }
+  });
+
+  // Now operate on the relevantEmails list separately
+  relevantEmails.forEach(email => {
+    // Process relevant email
+    console.log(email.getSubject());
+    // Additional processing...
+  });
+  console.log(`Found ${relevantEmails.length} emails classified`);
+}
+
+function classifyEmail(email) {
+  let url = "https://7fbe-143-215-91-92.ngrok-free.app"; // Replace with your Flask app URL
+  const endpoint = "/predict";
+  url += endpoint;
+
+  let subject = "";
+  let emailBody = "";
+
+  try {
+    subject = email.getSubject();
+    emailBody = email.getPlainBody();
+  } 
+  catch(error) {
+    Logger.log("Error classifying email: " + error.message);
+  }
+
+  // console.log(subject)
+  // console.log(emailBody)
+
+  const payload = {
+    subject: subject,
+    body: emailBody,
+  };
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(payload),
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const data = JSON.parse(response.getContentText());
+    return data.prediction; // Returns 1 or 0
+  } catch (error) {
+    Logger.log("Error classifying email: " + error.message);
+    return 0; // Default to not relevant
+  }
+}
+
 
 function addHeader(dataSheet) {
   let header = ["QueryID", "Subject", "Date Applied","Company/Organization","Position","Location of Internship", "Application Status", "Link with internship information"];

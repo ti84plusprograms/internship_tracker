@@ -7,7 +7,7 @@ function populateDataset() {
   const queriesSheet = spreadsheet.getSheetByName("Search Queries");
   const mlSheet = ml_data == 0 ? spreadsheet.getSheetByName("ML_Dataset_company_extraction") : spreadsheet.getSheetByName("ML_Dataset_email_classifier");
 
-  if (!queriesSheet || !mlSheet) {
+  if (!mlSheet) {
     SpreadsheetApp.getUi().alert("Ensure the sheets named ${sheetNames[0]} and ${sheetNames[1]} exist.");
     return;
   }
@@ -39,21 +39,20 @@ function populateDataset() {
   }
 
   queries.forEach(query => {
-    const threads = GmailApp.search(query); // Search Gmail with the query
-    threads.forEach(thread => {
-      const messages = thread.getMessages();
-      messages.forEach(message => {
-        const subject = message.getSubject();
-        const body = message.getBody();
-        // Log data in 'Sheet1'
-        ml_rows.push([
-          subject,
-          body,
-          ""
-        ]);
-      });
-    });
-  });
+  const threads = GmailApp.search(query);
+  
+  for (let i = 0; i < threads.length; i++) {
+    if (threads[i].getMessageCount() !== 1) continue; // Skip threads with multiple emails
+
+    const message = threads[i].getMessages()[0]; // Get the only message in the thread
+    ml_rows.push([
+      message.getSubject(),
+      message.getBody(),
+      ""
+    ]);
+  }
+});
+
 
   ml_rows.forEach(row => {
     mlSheet.appendRow(row);
