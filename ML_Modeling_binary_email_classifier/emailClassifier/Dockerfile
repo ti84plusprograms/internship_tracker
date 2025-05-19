@@ -10,17 +10,21 @@ COPY requirements.txt .
 # Install the dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
+ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
+ENV HF_HOME=/app/.cache/huggingface
+RUN mkdir -p /app/.cache/huggingface
+
+ARG HF_MODEL_NAME="facebook/bart-large-mnli"
+ENV ZERO_SHOT_MODEL_NAME=${HF_MODEL_NAME}
+
+# Download Hugging Face model
+RUN python -c "from transformers import pipeline; import os; print(f'Downloading HF model: {os.environ.get(\"ZERO_SHOT_MODEL_NAME\")}'); pipeline('zero-shot-classification', model=os.environ.get('ZERO_SHOT_MODEL_NAME'))"
 
 # Copy the rest of the application code into the container
 COPY . .
 
-# Ensure the model file is copied (if it isn't already in the same directory)
-COPY email_classifier.pkl /app/
-COPY tfidf_vectorizer.pkl /app/
-
 # Expose the port the app runs on
-EXPOSE 8080
+EXPOSE 8000
 
 # Define the command to run the application
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "emailClassifier:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "emailClassifier:app"]
