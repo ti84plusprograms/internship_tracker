@@ -40,17 +40,20 @@ function populateDataset() {
 
   queries.forEach(query => {
   const threads = GmailApp.search(query);
-  
-  for (let i = 0; i < threads.length; i++) {
-    if (threads[i].getMessageCount() !== 1) continue; // Skip threads with multiple emails
 
-    const message = threads[i].getMessages()[0]; // Get the only message in the thread
+  console.time("Going through all threads");
+  threads.forEach(thread => {
+    if (thread.getMessageCount() !== 1) return; // Skip threads with multiple emails
+
+    const [message] = thread.getMessages(); // Fetch only the first message
     ml_rows.push([
       message.getSubject(),
       message.getBody(),
       ""
     ]);
-  }
+    console.log(message.getSubject())
+  });
+  console.timeEnd("Going through all threads");
 });
 
 
@@ -63,8 +66,12 @@ function populateDataset() {
 
   const range = mlSheet.getDataRange();
   range.removeDuplicates();
+  console.time("Cleaning Data");
   cleanData();
+  console.timeEnd("Cleaning Data");
+  console.time("Resizing sheet");
   autoResizeWithMarginAndWrap(mlSheet, 15, 200);
+  console.timeEnd("Resizing sheet");
 }
 
 function autoResizeWithMarginAndWrap(sheet, extraWidth, wrapThreshold) {
@@ -130,7 +137,8 @@ function cleanData() {
 }
 
 function cleanCell(rawHtml) {
-  let url = "https://internship-tracker-1095575192028.us-central1.run.app";
+  // let url = "https://internship-tracker-1095575192028.us-central1.run.app";
+  let url = "https://internship-tracker-bq0q.onrender.com"
   const endpoint = "/clean-email";
   url += endpoint;
   const payload = JSON.stringify({ email_body: rawHtml });
