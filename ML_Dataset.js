@@ -136,31 +136,31 @@ function cleanData() {
   console.log("It worked");
 }
 
-function cleanCell(rawHtml) {
-  // let url = "https://internship-tracker-1095575192028.us-central1.run.app";
-  let url = "https://internship-tracker-bq0q.onrender.com"
-  const endpoint = "/clean-email";
-  url += endpoint;
-  const payload = JSON.stringify({ email_body: rawHtml });
+// function cleanCell(rawHtml) {
+//   // let url = "https://internship-tracker-1095575192028.us-central1.run.app";
+//   let url = "https://internship-tracker-bq0q.onrender.com"
+//   const endpoint = "/clean-email";
+//   url += endpoint;
+//   const payload = JSON.stringify({ email_body: rawHtml });
 
-  const options = {
-    method: "POST",
-    contentType: "application/json",
-    payload: payload,
-    muteHttpExceptions: true,  // Ensure we don't throw an error on non-2xx status codes
-  };
+//   const options = {
+//     method: "POST",
+//     contentType: "application/json",
+//     payload: payload,
+//     muteHttpExceptions: true,  // Ensure we don't throw an error on non-2xx status codes
+//   };
 
-  try {
-    const response = UrlFetchApp.fetch(url, options);
-    const responseText = response.getContentText();  // Get raw response
-    Logger.log("Response: " + responseText);  // Log the raw response
-    const data = JSON.parse(responseText);  // Try to parse JSON from the response
-    return data.cleaned_body || ""; // Return cleaned body
-  } catch (error) {
-    Logger.log("Error cleaning email: " + error);
-    return rawHtml; // Return the original raw HTML in case of an error
-  }
-}
+//   try {
+//     const response = UrlFetchApp.fetch(url, options);
+//     const responseText = response.getContentText();  // Get raw response
+//     Logger.log("Response: " + responseText);  // Log the raw response
+//     const data = JSON.parse(responseText);  // Try to parse JSON from the response
+//     return data.cleaned_body || ""; // Return cleaned body
+//   } catch (error) {
+//     Logger.log("Error cleaning email: " + error);
+//     return rawHtml; // Return the original raw HTML in case of an error
+//   }
+//}
 
 function testCleanCell() {
   const testCases = [
